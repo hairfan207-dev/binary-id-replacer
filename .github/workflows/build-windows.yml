@@ -3,6 +3,9 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -21,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Run core tests
+      - name: Run core binary tests
         run: |
           python -m unittest -v test_binary_processor.py
 
@@ -32,12 +35,54 @@ jobs:
       - name: Verify EXE exists
         shell: powershell
         run: |
-          if (!(Test-Path "dist\BinaryIDReplacer.exe")) {
-            throw "BinaryIDReplacer.exe was not created"
+          $exe = "dist\BinaryIDReplacer.exe"
+
+          if (!(Test-Path $exe)) {
+            throw "BinaryIDReplacer.exe was not created."
           }
+
+          $size = (Get-Item $exe).Length
+
+          if ($size -lt 1000000) {
+            throw "EXE file looks unexpectedly small: $size bytes"
+          }
+
+          Write-Host "EXE exists."
+          Write-Host "EXE size: $size bytes"
+
+      - name: Windows EXE startup smoke test
+        shell: powershell
+        run: |
+          $exe = Resolve-Path "dist\BinaryIDReplacer.exe"
+
+          Write-Host "Launching BinaryIDReplacer.exe..."
+
+          $process = Start-Process `
+            -FilePath $exe `
+            -PassThru
+
+          Start-Sleep -Seconds 5
+
+          if ($process.HasExited) {
+            throw "BinaryIDReplacer.exe exited unexpectedly during startup. Exit code: $($process.ExitCode)"
+          }
+
+          Write-Host "Application remained running successfully for 5 seconds."
+          Write-Host "Startup smoke test passed."
+
+          Stop-Process -Id $process.Id -Force
+
+      - name: Generate SHA256 checksum
+        shell: powershell
+        run: |
+          Get-FileHash `
+            "dist\BinaryIDReplacer.exe" `
+            -Algorithm SHA256 |
+          Format-List
 
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v7
         with:
           name: BinaryIDReplacer-Windows
           path: dist/BinaryIDReplacer.exe
+          if-no-files-found: error
