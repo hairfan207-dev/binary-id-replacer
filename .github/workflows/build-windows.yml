@@ -1,0 +1,43 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m unittest -v
+
+      - name: Build Windows EXE
+        run: |
+          python -m PyInstaller --noconfirm --clean BinaryIDReplacer.spec
+
+      - name: Verify EXE exists
+        shell: powershell
+        run: |
+          if (!(Test-Path "dist\BinaryIDReplacer.exe")) {
+            throw "BinaryIDReplacer.exe was not created"
+          }
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v7
+        with:
+          name: BinaryIDReplacer-Windows
+          path: dist/BinaryIDReplacer.exe
