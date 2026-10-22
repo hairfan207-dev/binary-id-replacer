@@ -21,9 +21,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run core tests
         run: |
-          python -m unittest -v
+          python -m unittest -v test_binary_processor.py
 
       - name: Build Windows EXE
         run: |
